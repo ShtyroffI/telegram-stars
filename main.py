@@ -1,31 +1,31 @@
-import requests
-import dotenv
 import os
-import time
+import dotenv
+import aiohttp
+import asyncio
+import ssl
+import certifi
+
 
 dotenv.load_dotenv()
 bot_token = os.getenv("TOKEN")
-
-# URL для получения обновлений
 url = f"https://api.telegram.org/bot{bot_token}/"
-last_update_id = 0  # Для отслеживания последнего обработанного сообщения
+last_update_id = 0
+ssl_context = ssl.create_default_context()
+ssl_context.load_verify_locations(cafile=certifi.where())
 
-def send_message(chat_id, text):
-    params = {
-        "chat_id": chat_id,
-        "text": text
-    }
-    response = requests.post(url + "sendMessage", data=params)
-    return response.json()
+async def send_message(session: aiohttp.ClientSession, chat_id: int, text: str) -> dict:
+    params = {"chat_id": chat_id, "text": text}
+    async with session.post(url + "sendMessage", data=params) as response:
+        return await response.json()
 
-while True:
-    try:
-        # Получаем обновления с long polling
-        updates = requests.get(
-            url + "getUpdates",
-            params={"offset": last_update_id + 1, "timeout": 30}
-        ).json()
-
+async def process_updates(session: aiohttp.ClientSession):
+    global last_update_id
+    async with session.get(
+        url + "getUpdates",
+        params={"offset": last_update_id + 1, "timeout": 30}
+    ) as response:
+        updates = await response.json()
+        
         if "result" in updates:
             for update in updates["result"]:
                 last_update_id = update["update_id"]
@@ -35,14 +35,24 @@ while True:
                     text = message.get("text", "")
                     print(f"Новое сообщение: {text}")
 
-                    # Ответ на команду /start
                     if text == "/start":
-                        send_message(chat_id, "Привет! Я активен и готов к работе!")
+                        await send_message(session, chat_id, "Привет! Я теперь асинхронный! ⚡")
                     else:
-                        send_message(chat_id, f"Вы написали: {text}")
+                        await send_message(session, chat_id, f"Эхо: {text}")
 
-        time.sleep(1)
 
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        time.sleep(5)
+async def main():
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+        while True:
+            try:
+                await process_updates(session)
+                await asyncio.sleep(0.1)
+            except aiohttp.ClientError as e:
+                print(f"Ошибка подключения: {e}")
+                await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Неизвестная ошибка: {e}")
+                await asyncio.sleep(5)
+
+if __name__ == "__main__":
+    asyncio.run(main())

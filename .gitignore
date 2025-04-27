@@ -1,0 +1,34 @@
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# Секретные файлы
+.env
+*.env.local
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.cache
+
+# Файлы редакторов/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Системные файлы (macOS/Windows)
+.DS_Store
+Thumbs.db
+
+# Файлы сборки и дистрибуции
+dist/
+build/
+*.egg-info/
